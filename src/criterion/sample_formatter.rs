@@ -49,6 +49,7 @@ impl ValueFormatter for SampleFormatter {
     ) -> &'static str {
         match *throughput {
             Throughput::Bytes(bytes) => self.bytes_per_event(bytes as f64, values),
+            Throughput::BytesDecimal(bytes) => self.bytes_per_event(bytes as f64, values),
             Throughput::Elements(elems) => self.elements_per_event(elems as f64, values),
         }
     }

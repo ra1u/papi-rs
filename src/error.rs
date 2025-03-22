@@ -6,13 +6,13 @@
 // http://opensource.org/licenses/MIT>, at your option. This file may not be
 // copied, modified, or distributed except according to those terms.
 
-use error_chain::error_chain;
-use std::ffi::CStr;
+
 use std::os::raw::c_int;
-
 use super::ffi;
+use core::result;
+use std::error::Error;
 
-// pub type Result<T> = result::Result<T, Error>;
+pub type Result<T> = result::Result<T, Box<dyn Error>>;
 //
 pub fn check(code: c_int) -> Result<()> {
     match code as u32 {
@@ -21,35 +21,23 @@ pub fn check(code: c_int) -> Result<()> {
     }
 }
 
-error_chain! {
-    errors {
-        PapiError(e: c_int) {
-            description("PAPI command failed")
-            display("PAPI command returned with: '{}'",
-                        unsafe {
-                            let str_ptr = ffi::PAPI_strerror(*e);
-                            CStr::from_ptr(str_ptr)
-                                .to_str()
-                                .expect("Couldn't convert error message into UTF8 string")
-                        }
-                    )
-        }
-        InvalidEvent(e: &'static str) {
-            description("invalid event name")
-            display("invalid event name: '{}'", e)
-        }
-        InvalidArgument(e: String) {
-            description("invalid argument")
-            display("invalid argument: '{}'", e)
-        }
-        OutOfHardwareCounters(e: &'static str) {
-            description("out of hardware counters")
-            display("out of hardware counters")
-        }
-    }
+#[derive(Debug)]
+pub enum ErrorKind {
+    PapiError(c_int),
+    InvalidEvent(&'static str),
+    InvalidArgument(String),
+    OutOfHardwareCounters(&'static str),
+}
 
-    foreign_links {
-        Io(::std::io::Error);
-        TomlDe(toml::de::Error);
+impl Error for ErrorKind {}
+
+impl std::fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match *self {
+            ErrorKind::PapiError(ref e) => write!(f, "PAPI error: {}", e),
+            ErrorKind::InvalidEvent(ref e) => write!(f, "Invalid event: {}", e),
+            ErrorKind::InvalidArgument(ref e) => write!(f, "Invalid argument: {}", e),
+            ErrorKind::OutOfHardwareCounters(ref e) => write!(f, "Out of hardware counters: {}", e),
+        }
     }
 }

@@ -14,14 +14,17 @@ pub mod criterion;
 
 use crate::error::Result;
 
+use error::ErrorKind;
 use papi_sys as ffi;
 
-use error_chain::bail;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Read;
 use std::path;
+use std::sync::Mutex;
+
+static INIT: Mutex<bool> = Mutex::new(false);
 
 #[derive(Debug)]
 pub struct Papi {
@@ -42,16 +45,22 @@ impl Papi {
     ///     assert!(Papi::init().is_ok());
     ///
     pub fn init() -> Result<Self> {
+        let mut init_m = INIT.lock().unwrap();
+        if *init_m {
+            return Ok(Papi { config: None });
+        }
         if unsafe { ffi::PAPI_is_initialized() } != ffi::PAPI_LOW_LEVEL_INITED as i32 {
-            if unsafe { ffi::PAPI_library_init(ffi::PAPI_VER_CURRENT) != ffi::PAPI_VER_CURRENT } {
-                bail!("PAPI library version mismatch!");
+            let ver_or_err = unsafe {  ffi::PAPI_library_init(ffi::PAPI_VER_CURRENT) };
+            if ver_or_err != ffi::PAPI_VER_CURRENT  {
+                return Err(ErrorKind::PapiError(ver_or_err).into());
             }
         }
-
-        if unsafe { ffi::PAPI_thread_init(Some(libc::pthread_self)) } != ffi::PAPI_OK as i32 {
-            bail!("Unable to initialize PAPI threads");
+        // should be called only once
+        let err = unsafe {  ffi::PAPI_thread_init(Some(libc::pthread_self)) };
+        if err != ffi::PAPI_OK as i32 {
+           return Err(ErrorKind::PapiError(err).into());
         }
-
+        *init_m = true;
         Ok(Papi { config: None })
     }
 
@@ -107,7 +116,6 @@ impl Config {
     ///
     pub fn parse_str(config: &str) -> Result<Self> {
         let deserialized: Self = toml::from_str(&config)?;
-
         Ok(deserialized)
     }
 }

@@ -44,7 +44,7 @@
 //!
 //!      // Create an event set
 //!      let ready_event_set = papi::event_set::EventSetBuilder::new(&papi)?
-//!          .add_event_by_name("CPU_CLK_UNHALTED")?
+//!          .add_event_by_name("PAPI_TOT_INS")?
 //!          .build()?;
 //!
 //!      // Create and initialize a sample
@@ -93,6 +93,7 @@ pub struct ReadyEventSet {
 pub struct RunningEventSet {
     event_set: Option<i32>,
     event_set_hash: u64,
+    #[allow(dead_code)]
     num_events: NonZeroU16,
     phantom: PhantomData<*mut u8>, // unimplement Send and Sync
 }
@@ -117,7 +118,7 @@ pub struct EventSetBuilder<'p> {
 ///     # fn main() -> Result<(), Box<dyn Error>> {
 ///     # let papi = Papi::init()?;
 ///     # let ready_event_set = EventSetBuilder::new(&papi)?
-///     #     .add_event_by_name("CPU_CLK_UNHALTED")?
+///     #     .add_event_by_name("PAPI_TOT_INS")?
 ///     #     .build()?;
 ///     #
 ///     let mut sample = Sample::default();
@@ -150,7 +151,7 @@ impl ReadyEventSet {
     ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     # let papi = Papi::init()?;
     ///     # let ready_event_set = EventSetBuilder::new(&papi)?
-    ///     #     .add_event_by_name("CPU_CLK_UNHALTED")?
+    ///     #     .add_event_by_name("PAPI_TOT_INS")?
     ///     #     .build()?;
     ///     #
     ///     # let mut sample = Sample::default();
@@ -190,7 +191,7 @@ impl ReadyEventSet {
     ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     # let papi = Papi::init()?;
     ///     # let ready_event_set = EventSetBuilder::new(&papi)?
-    ///     #     .add_event_by_name("CPU_CLK_UNHALTED")?
+    ///     #     .add_event_by_name("PAPI_TOT_INS")?
     ///     #     .build()?;
     ///     #
     ///     let mut sample = Sample::default();
@@ -236,7 +237,7 @@ impl ReadyEventSet {
     ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     # let papi = Papi::init()?;
     ///     # let ready_event_set = EventSetBuilder::new(&papi)?
-    ///     #     .add_event_by_name("CPU_CLK_UNHALTED")?
+    ///     #     .add_event_by_name("PAPI_TOT_INS")?
     ///     #     .build()?;
     ///     #
     ///     let cloned_event_set = ready_event_set.try_clone()?;
@@ -301,7 +302,7 @@ impl RunningEventSet {
     ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     # let papi = Papi::init()?;
     ///     # let ready_event_set = EventSetBuilder::new(&papi)?
-    ///     #     .add_event_by_name("CPU_CLK_UNHALTED")?
+    ///     #     .add_event_by_name("PAPI_TOT_INS")?
     ///     #     .build()?;
     ///     #
     ///     let mut sample = Sample::default();
@@ -344,7 +345,7 @@ impl RunningEventSet {
     ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     # let papi = Papi::init()?;
     ///     # let ready_event_set = EventSetBuilder::new(&papi)?
-    ///     #     .add_event_by_name("CPU_CLK_UNHALTED")?
+    ///     #     .add_event_by_name("PAPI_TOT_INS")?
     ///     #     .build()?;
     ///     #
     ///     let mut sample = Sample::default();
@@ -387,7 +388,7 @@ impl RunningEventSet {
     ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     # let papi = Papi::init()?;
     ///     # let ready_event_set = EventSetBuilder::new(&papi)?
-    ///     #     .add_event_by_name("CPU_CLK_UNHALTED")?
+    ///     #     .add_event_by_name("PAPI_TOT_INS")?
     ///     #     .build()?;
     ///     #
     ///     let mut sample = Sample::default();
@@ -449,7 +450,7 @@ impl<'p> EventSetBuilder<'p> {
     ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     # let papi = Papi::init()?;
     ///     let builder = EventSetBuilder::new(&papi)?;
-    ///     # assert!(builder.add_event_by_name("CPU_CLK_UNHALTED").is_ok());
+    ///     # assert!(builder.add_event_by_name("PAPI_TOT_INS").is_ok());
     ///     # Ok(())
     ///     # }
     ///
@@ -478,7 +479,7 @@ impl<'p> EventSetBuilder<'p> {
     ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     # let papi = Papi::init()?;
     ///     # let builder = EventSetBuilder::new(&papi)?
-    ///     #     .add_event_by_name("CPU_CLK_UNHALTED")?;
+    ///     #     .add_event_by_name("PAPI_TOT_INS")?;
     ///     #
     ///     let ready_event_set = builder.build()?;
     ///     #
@@ -527,7 +528,7 @@ impl<'p> EventSetBuilder<'p> {
     ///     # let papi = Papi::init()?;
     ///     # let builder = EventSetBuilder::new(&papi)?;
     ///     #
-    ///     builder.add_event_by_name("CPU_CLK_UNHALTED")?;
+    ///     builder.add_event_by_name("PAPI_TOT_INS")?;
     ///     #
     ///     # Ok(())
     ///     # }
@@ -539,7 +540,8 @@ impl<'p> EventSetBuilder<'p> {
         if num_events < 0 {
             check(num_events)?;
         }
-        let num_counters = unsafe { ffi::PAPI_num_counters() };
+        let num_counters =
+            unsafe { ffi::PAPI_get_opt(ffi::PAPI_MAX_HWCTRS as i32, std::ptr::null_mut()) };
         if num_counters < 0 {
             check(num_counters)?;
         } else if num_events == num_counters {
@@ -576,7 +578,7 @@ impl<'p> EventSetBuilder<'p> {
     ///     # fn main() -> Result<(), Box<dyn Error>> {
     ///     let config_str = r#"
     ///     [presets]
-    ///     Test1 = ["UOPS_RETIRED:ALL", "UOPS_RETIRED:STALL_CYCLES"]
+    ///     Test1 = ["PAPI_TOT_INS", "PAPI_BR_MSP"]
     ///     Test2 = ["UOPS_EXECUTED:CORE", "UOPS_EXECUTED:STALL_CYCLES"]
     ///     Test3 = ["UOPS_EXECUTED:THREAD"]
     ///     "#;
@@ -708,9 +710,13 @@ mod tests {
     #[test]
     fn complete_pipeline() {
         let papi = Papi::init().unwrap();
+
+        //let event_name = Sample::event_code_to_name(0x76);
+        //println!("Event name: {:?}", event_name);
+        let event_name = "PAPI_TOT_INS";
         let event_added = EventSetBuilder::new(&papi)
             .unwrap()
-            .add_event_by_name("CPU_CLK_UNHALTED");
+            .add_event_by_name(event_name);
         assert!(event_added.is_ok());
 
         let builder = event_added.unwrap();
@@ -732,7 +738,7 @@ mod tests {
         let papi = Papi::init().unwrap();
         let event_added = EventSetBuilder::new(&papi)
             .unwrap()
-            .add_event_by_name("CPU_CLK_UNHALTED");
+            .add_event_by_name("PAPI_TOT_INS");
         assert!(event_added.is_ok());
 
         let builder = event_added.unwrap();
@@ -756,7 +762,7 @@ mod tests {
         let papi = Papi::init().unwrap();
         let event_added = EventSetBuilder::new(&papi)
             .unwrap()
-            .add_event_by_name("CPU_CLK_UNHALTED");
+            .add_event_by_name("PAPI_TOT_INS");
         assert!(event_added.is_ok());
     }
 
@@ -765,7 +771,7 @@ mod tests {
         let papi = Papi::init().unwrap();
         let event_added = EventSetBuilder::new(&papi)
             .unwrap()
-            .add_event_by_name("CPU_CLK_UNHALTED");
+            .add_event_by_name("PAPI_TOT_INS");
         assert!(event_added.is_ok());
 
         let builder = event_added.unwrap();
@@ -777,7 +783,7 @@ mod tests {
         let papi = Papi::init().unwrap();
         let event_added = EventSetBuilder::new(&papi)
             .unwrap()
-            .add_event_by_name("CPU_CLK_UNHALTED");
+            .add_event_by_name("PAPI_TOT_INS");
         assert!(event_added.is_ok());
 
         let builder = event_added.unwrap();
